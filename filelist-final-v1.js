@@ -12,7 +12,7 @@ var fs = require('fs'),
             port: 3306
         })
 filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
-        filePath = '../../patch/',
+        filePath = '../../140715CbXIComm_Opt3/',
         path = require('path'),
         results = [],
         pending = 0,
@@ -30,8 +30,10 @@ var _counter = 0;
 walker.on("end", function () {
 //	console.log(filesCategorized[fileSizes[0]+'_mb']);
     var finalArr = [];
+    var $firstCounter = 0;
+
     for (var t in filesCategorized) {
-        console.log("generating archive for " + t + "mb sized files ");
+        //console.log("generating archive for " + t + "mb sized files ");
         finalArr[t] = [];
         filesCategorized[t] = filesCategorized[t].sort(function (a, b) {
             return a[0] - b[0];
@@ -41,31 +43,63 @@ walker.on("end", function () {
         var maxVal = 0, counter = 0;
         for (var i in filesCategorized[t]) {
             maxVal = parseInt(maxVal) + parseInt(filesCategorized[t][i][0]);
-//            console.log(t.replace('_mb', ''), filesCategorized[t][i], maxVal);
+
             if (t.replace('_mb', '') > maxVal) {
-//                            console.log('pushing in finalarr - ',filesCategorized[t][i])
+
                 if (finalArr[t][counter])
                     finalArr[t][counter].push(filesCategorized[t][i][1]);
                 else
                     finalArr[t][counter] = [filesCategorized[t][i][1]];
 
             } else {
-//                         console.log('pushing in finalarr - ',filesCategorized[t][i])
+
                 maxVal = parseInt(filesCategorized[t][i][0]);
                 counter++;
                 finalArr[t][counter] = [filesCategorized[t][i][1]];
             }
         }
 
-        for (i = 0; i < finalArr[t].length; i++) {
-//                     console.log(finalArr[t][i]);
-            generateArchiveFile(t.replace("_mb", "") * 1024, finalArr[t][i], i);
-            
-        }
-//		 generateArchiveFile(t.replace("_mb","") * 1024, filesCategorized[t]);
+	if($firstCounter+1 == Object.keys(filesCategorized).length){
+		console.log(t);
+	       generateArchive(finalArr, finalArr[Object.keys(finalArr)[0]]);
+	}
+	$firstCounter++;
     }
 
+
+
 });
+
+var archiveCounting = 0;
+function generateArchive(finalArr, temp){
+	if(Object.keys(finalArr).length){
+		console.log("inside ---");
+		var fin = temp;
+		if(fin.length){
+			finIn = fin.shift();
+			generateArchiveFile(Object.keys(finalArr)[0].replace("_mb","")*1024, finIn,fin.length, function(filename, filesize){
+				        addFile(filename, filesize, function(connection){
+						 connection.end(function (err) {
+							// The connection is terminated now
+						    });
+						generateArchive(finalArr, fin);				
+					});
+					
+			});
+
+			
+		}else{
+			delete finalArr[Object.keys(finalArr)[0]];
+			if(finalArr)
+				fin = finalArr[Object.keys(finalArr)[0]];
+			generateArchive(finalArr, fin);
+		}
+
+		
+	}else{
+		console.log("completed transacting loop");
+	}
+}
 
 walker.on("file", function (root, fileStat, next) {
     var _file = path.resolve(root, fileStat.name);
@@ -144,7 +178,8 @@ function getArchiveName(name, currentVolumeIndex) {
 
 //generateArchiveFile();
 
-function generateArchiveFile(fileSize, files, currentVolumeIndex) {
+
+function generateArchiveFile(fileSize, files, currentVolumeIndex, callback) {
     var writer = Writer(fileSize);
     var xmlWriter = Writer("-1");
     //fileSize -1 means infinity
@@ -156,12 +191,10 @@ function generateArchiveFile(fileSize, files, currentVolumeIndex) {
         throw err;
     }).on('data', function (chunk) {
         writer.write(chunk);
-
     }).on('end', function () {
-        addFile(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
-
         writer.close();
         console.log('one zip ' + getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex) + ' done!!');
+	callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
     });
 
     //archive.bulk({src:['patchfiles/config/**']});
@@ -182,7 +215,8 @@ function getFileSize(fileName, callback) {
 }
 
 // adds filename in db
-function addFile(filename, filesize) {
+function addFile(filename, filesize, callback) {
+	handleDisconnect();
     //first check whether that file is already in the db
     connection.query('select * from filelist where slc_id = "' + slcId + '" and filename = "' + filename + '"  ', function (err, rows) {
         if (err)
@@ -193,7 +227,8 @@ function addFile(filename, filesize) {
             connection.query(" update filelist set download_status = '0' where filename = '" + filename + "' and slc_id = '" + slcId + "' ", function (err, rows) {
                 if (err)
                     throw err;
-
+		
+		callback(connection);
                 console.log("file status updated");
             });
         } else {
@@ -202,6 +237,7 @@ function addFile(filename, filesize) {
                     throw err;
 
                 console.log("file added in db after compression");
+		callback(connection);
             });
         }
 
@@ -209,3 +245,32 @@ function addFile(filename, filesize) {
 
 
 }
+
+function handleDisconnect() {
+    connection = mysql.createConnection({
+        host: '10.1.17.94',
+        user: 'root',
+        password: '',
+        database: 'patch',
+        port: 3306
+    });
+
+    connection.connect(function (err) {
+        if (err) {
+            console.log("mysql socket unexpectedly closed ");
+            setTimeout(handleDisconnect, 2000);
+        }
+
+    });
+
+    connection.on('error', function (err) {
+        console.log('db error', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+            handleDisconnect();                         // lost due to either server restart, or a
+        } else {                                      // connnection idle timeout (the wait_timeout
+            throw err;                                  // server variable configures this)
+        }
+    });
+
+}
+
