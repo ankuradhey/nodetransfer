@@ -6,7 +6,7 @@ fileSizes = [5, 10, 20, 30, 40, 50, 80, 100, 200, 300, 400, 500, 1000, 2000, 400
 filesCategorized = {}, size = 0,
 xmlIndexCounter = 1,
 largeSize = 0,
-filePath = '../api/';
+filePath = '../../140715CbXIComm_Opt3/';
 
 //traverse all files to get size of each file or directory
 traverseFiles();
@@ -155,8 +155,7 @@ function generateArchiveFile(fileSize, files) {
 				
 			});
 
-	//console.log(['patchfiles/composer.json','patchfiles/composer.lock','patchfiles/composer.phar','patchfiles/init_autoloader.php','patchfiles/config/**']);
-	//archive.bulk({src:['patchfiles/config/**']});
+	
 	archive.bulk({src:files});
 	archive.finalize();	
 }

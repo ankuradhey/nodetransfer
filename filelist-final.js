@@ -1,7 +1,24 @@
-var fs = require('fs'), shell = require('shelljs'), archiver = require('archiver'), mysql = require('mysql'), 
-fileSizes = [5, 10, 15, 20, 50, 100, 200, 500, 600, 800, 1000, 2000],
-//fileSizes = [10],
-filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0, filePath = '../school_lms1/', path = require('path'), results = [], pending = 0, walk = require('walk'), path = require('path'), walker = walk.walk(filePath, {
+var fs = require('fs'), 
+shell = require('shelljs'), 
+archiver = require('archiver'), 
+mysql = require('mysql'),
+schoolPatchId = 1,
+fileSizes = [5,10,15, 20, 50, 100, 200, 500, 600, 800, 1000, 2000],
+connection = mysql.createConnection({
+	host : '10.1.17.94',
+	user : 'root',
+	password : '',
+	database : 'patch',
+	port : 3306
+})
+filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0, 
+filePath = '../../140715CbXIComm_Opt3/', 
+path = require('path'), 
+results = [], 
+pending = 0, 
+walk = require('walk'), 
+path = require('path'), 
+walker = walk.walk(filePath, {
 	followLinks : false,
 	filters : [".svn"]
 });
@@ -108,12 +125,14 @@ function generateArchiveFile(fileSize, files) {
 
 	//console.log('checking current volume index ' + currentVolumeIndex+' max size '+parseInt(fileSize / 1000000) + 'mb');
 
-	var archive = archiver('zip').on('error', function(err) {
+	var archive = archiver('tar').on('error', function(err) {
 		throw err;
 	}).on('data', function(chunk) {
 
 		if (writer.isFull(chunk.length)) {
 			//console.log(" one of the chunk done!!  ");
+                        console.log('one zip '+getArchiveName('zippedpatch_' + parseInt(fileSize / 1000000) + 'mb', currentVolumeIndex)+' done!!');
+                        addFile(getArchiveName('zippedpatch_' + parseInt(fileSize / 1000000) + 'mb', currentVolumeIndex), parseInt(fileSize / 1000000));
 			writer.close();
 			currentVolumeIndex++;
 			writer.start(getArchiveName('zippedpatch_' + parseInt(fileSize / 1000000) + 'mb', currentVolumeIndex));
@@ -121,8 +140,10 @@ function generateArchiveFile(fileSize, files) {
 		writer.write(chunk);
 
 	}).on('end', function() {
+                addFile(getArchiveName('zippedpatch_' + parseInt(fileSize / 1000000) + 'mb', currentVolumeIndex), parseInt(fileSize / 1000000));
+
 		writer.close();
-		console.log('one zip done!!');
+		console.log('one zip '+getArchiveName('zippedpatch_' + parseInt(fileSize / 1000000) + 'mb', currentVolumeIndex)+' done!!');
 	});
 	
 	//console.log(['patchfiles/composer.json','patchfiles/composer.lock','patchfiles/composer.phar','patchfiles/init_autoloader.php','patchfiles/config/**']);
@@ -145,7 +166,7 @@ function getFileSize(fileName, callback) {
 
 // adds filename in db
 function addFile(filename, filesize){
-	var query = connection.query('insert into filelist(filename, filesize, download_status) values ("'+filename+'", "'+filesize+'","0" ) ', function(err, rows) {
+	var query = connection.query('insert into filelist(slc_id, filename, filesize, download_status) values ('+schoolPatchId+',"'+filename+'", "'+filesize+'","0" ) ', function(err, rows) {
 		if (err)
 			throw err;
 

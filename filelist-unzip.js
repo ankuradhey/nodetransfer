@@ -51,7 +51,7 @@ zipWalker.on("end", function() {
 	
 		if(zippedArr[i].length == 1){
 			//if single file then move it
-		shell.exec('mv -f "./' + zippedArr[i][0] + '" ./zipper/'+zippedArr[i][0], {
+		shell.exec('mv -f "./' + zippedArr[i][0] + '" ./zipped/'+zippedArr[i][0], {
 				silent : true
 			});
 		}else{
@@ -61,7 +61,7 @@ zipWalker.on("end", function() {
 				silent : true
 			});
 			
-			shell.exec('mv -f ./' + i + 'mb_final.zip ./zipper/'+i+'mb_final.zip', {
+			shell.exec('mv -f ./' + i + 'mb_final.zip ./zipped/'+i+'mb_final.zip', {
 				silent : true
 			});
 
@@ -69,7 +69,7 @@ zipWalker.on("end", function() {
 				zip.addLocalFile('./'+zippedArr[i][k]);
 			}
 			zip.toBuffer();
-			zip.writeZip('./zipper/'+i+'_final.zip');*/
+			zip.writeZip('./zipped/'+i+'_final.zip');*/
 
 		}
 	
@@ -77,7 +77,7 @@ zipWalker.on("end", function() {
 		
 		if(_counter == Object.keys(zippedArr).length)
 		{
-			var unzipWalker = walk.walk('./zipper',{
+			var unzipWalker = walk.walk('./zipped',{
 				followLinks: false,
 				filter: [".svn"]
 			});
@@ -86,13 +86,14 @@ zipWalker.on("end", function() {
 			unzipWalker.on("file",function(root,fileStat, next){
 				if(/\.zip$/i.test(fileStat.name)){
 					console.log(root,fileStat);
-					/*shell.exec('unzip "./zipper/'+fileStat.name, {
-						silent : true
-					});*/
-					var zip = new AdmZip('./zipper/'+fileStat.name);
-					//var list = zip.getEntries();
-					//console.log(list);
-					zip.extractAllTo("./patchfiles/", true);
+                                        try {
+                                            var zip = new AdmZip('./zipped/'+fileStat.name);
+                                            zipEntries = zip.getEntries();
+                                            console.log('zipped entries are - ',zipEntries)
+                                            zip.extractAllTo("./patchfiles/", true);
+                                        } catch (e) {
+                                            console.log('Caught exception: ', e,fileStat.name);
+                                        }
 				}
 					next();
 			});
