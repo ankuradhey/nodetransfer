@@ -4,15 +4,9 @@ var fs = require('fs'),
         mysql = require('mysql'),
         slcId = 1,
         fileSizes = [5 * 1024, 10 * 1024, 15 * 1024, 20 * 1024, 50 * 1024, 100 * 1024, 200 * 1024, 500 * 1024, 600 * 1024, 800 * 1024, 1000 * 1024, 2000 * 1024],
-        connection = mysql.createConnection({
-            host: '10.1.17.94',
-            user: 'root',
-            password: '',
-            database: 'patch',
-            port: 3306
-        })
-filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
-        filePath = '../../140715CbXIComm_Opt3/',
+//        fileSizes = [4000 * 1024],
+	filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
+        filePath = '/home/extramarks/Desktop/CD1',
         path = require('path'),
         results = [],
         pending = 0,
@@ -194,7 +188,7 @@ function generateArchiveFile(fileSize, files, currentVolumeIndex, callback) {
     }).on('end', function () {
         writer.close();
         console.log('one zip ' + getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex) + ' done!!');
-	callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
+	//callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
     });
 
     //archive.bulk({src:['patchfiles/config/**']});

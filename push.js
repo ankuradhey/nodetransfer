@@ -95,6 +95,14 @@ io.sockets.on( 'connection', function ( socket ) {
         });
     })
     
+    
+    //download and other all process success
+    socket.on('patch-download-complete', function(data){
+        console.log('Download completed successfully');
+        unsetDownloadFlag(data,function(){
+            console.log("download flag of school patch unset");
+        })
+    })
 });
 
 var updateSockets = function ( data ) {
@@ -126,4 +134,15 @@ function setDownloadFlag(data, callback){
         callback();
     });
 
+}
+
+function unsetDownloadFlag(data, callback){
+    // Make the database query
+    var query = connection.query('update school_patch set download_flag = "0" and patch_version = "'+data.patch_version+'" where slc_id = "' + data.slc_id + '" ',function(err, rows){
+            if(err)
+                throw err;
+        
+        console.log("school patch download flag set");
+        callback();
+    });
 }

@@ -3,9 +3,10 @@ var fs = require('fs'),
         archiver = require('archiver'),
         mysql = require('mysql'),
         slcId = 1,
-        fileSizes = [5 * 1024, 10 * 1024, 15 * 1024, 20 * 1024, 50 * 1024, 100 * 1024, 200 * 1024, 500 * 1024, 600 * 1024, 800 * 1024, 1000 * 1024],
-        filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
-        filePath = '/home/extramarks/Desktop/CD1/htdocs',
+        fileSizes = [5 * 1024, 10 * 1024, 15 * 1024, 20 * 1024, 50 * 1024, 100 * 1024, 200 * 1024, 500 * 1024, 600 * 1024, 800 * 1024, 1000 * 1024, 2000 * 1024],
+//        fileSizes = [4000 * 1024],
+	filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
+        filePath = '  /home/extramarks/Desktop/CD1',
         path = require('path'),
         results = [],
         pending = 0,
@@ -21,11 +22,12 @@ var filePath = '';
 var _counter = 0;
 
 walker.on("end", function () {
+//	console.log(filesCategorized[fileSizes[0]+'_mb']);
     var finalArr = [];
     var $firstCounter = 0;
 
     for (var t in filesCategorized) {
-
+        //console.log("generating archive for " + t + "mb sized files ");
         finalArr[t] = [];
         filesCategorized[t] = filesCategorized[t].sort(function (a, b) {
             return a[0] - b[0];
@@ -51,11 +53,11 @@ walker.on("end", function () {
             }
         }
 
-        if ($firstCounter + 1 == Object.keys(filesCategorized).length) {
-            console.log(t);
-            generateArchive(finalArr, finalArr[Object.keys(finalArr)[0]]);
-        }
-        $firstCounter++;
+	if($firstCounter+1 == Object.keys(filesCategorized).length){
+		console.log(t);
+	       generateArchive(finalArr, finalArr[Object.keys(finalArr)[0]]);
+	}
+	$firstCounter++;
     }
 
 
@@ -63,30 +65,34 @@ walker.on("end", function () {
 });
 
 var archiveCounting = 0;
-function generateArchive(finalArr, temp) {
-    if (Object.keys(finalArr).length) {
-        console.log("inside ---");
-        var fin = temp;
-        console.log(fin);
-        if (fin.length) {
-            finIn = fin.shift();
-            generateArchiveFile(Object.keys(finalArr)[0].replace("_mb", "") * 1024, finIn, fin.length, function (filename, filesize) {
-                console.log('achieved')
-                generateArchive(finalArr, fin);
-            });
+function generateArchive(finalArr, temp){
+	if(Object.keys(finalArr).length){
+		console.log("inside ---");
+		var fin = temp;
+		if(fin.length){
+			finIn = fin.shift();
+			generateArchiveFile(Object.keys(finalArr)[0].replace("_mb","")*1024, finIn,fin.length, function(filename, filesize){
+				        addFile(filename, filesize, function(connection){
+						 connection.end(function (err) {
+							// The connection is terminated now
+						    });
+						generateArchive(finalArr, fin);				
+					});
+					
+			});
 
+			
+		}else{
+			delete finalArr[Object.keys(finalArr)[0]];
+			if(finalArr)
+				fin = finalArr[Object.keys(finalArr)[0]];
+			generateArchive(finalArr, fin);
+		}
 
-        } else {
-            delete finalArr[Object.keys(finalArr)[0]];
-            if (finalArr)
-                fin = finalArr[Object.keys(finalArr)[0]];
-            generateArchive(finalArr, fin);
-        }
-
-
-    } else {
-        console.log("completed transacting loop");
-    }
+		
+	}else{
+		console.log("completed transacting loop");
+	}
 }
 
 walker.on("file", function (root, fileStat, next) {
@@ -94,23 +100,15 @@ walker.on("file", function (root, fileStat, next) {
 
     getFileSize(_file, function (size) {
         console.log(_file, size);
-        var bigSizeFlag = true;
         for (var k in fileSizes) {
 
             if (size < fileSizes[k]) {
-                bigSizeFlag = false;
                 if (filesCategorized[fileSizes[k] + "_mb"]) {
                     filesCategorized[fileSizes[k] + "_mb"].push([size, _file]);
                 } else {
                     filesCategorized[fileSizes[k] + "_mb"] = [[size, _file]]
                 }
-            }
-        }
-        if (bigSizeFlag) {
-            if (filesCategorized['3000_mb']) {
-                filesCategorized['3000_mb'].push([size, _file]);
-            } else {
-                filesCategorized['3000_mb'] = [[size, _file]]
+                break;
             }
         }
         next();
@@ -190,8 +188,7 @@ function generateArchiveFile(fileSize, files, currentVolumeIndex, callback) {
     }).on('end', function () {
         writer.close();
         console.log('one zip ' + getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex) + ' done!!');
-
-        callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
+	//callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
     });
 
     //archive.bulk({src:['patchfiles/config/**']});
@@ -211,4 +208,63 @@ function getFileSize(fileName, callback) {
     callback(size);
 }
 
+// adds filename in db
+function addFile(filename, filesize, callback) {
+	handleDisconnect();
+    //first check whether that file is already in the db
+    connection.query('select * from filelist where slc_id = "' + slcId + '" and filename = "' + filename + '"  ', function (err, rows) {
+        if (err)
+            throw err;
+        
+        console.log(rows);
+        if (rows && rows.length) {
+            connection.query(" update filelist set download_status = '0' where filename = '" + filename + "' and slc_id = '" + slcId + "' ", function (err, rows) {
+                if (err)
+                    throw err;
+		
+		callback(connection);
+                console.log("file status updated");
+            });
+        } else {
+            var query = connection.query('insert into filelist(slc_id, filename, filesize, download_status) values (' + slcId + ',"' + filename + '", "' + filesize + '","0" ) ', function (err, rows) {
+                if (err)
+                    throw err;
+
+                console.log("file added in db after compression");
+		callback(connection);
+            });
+        }
+
+    });
+
+
+}
+
+function handleDisconnect() {
+    connection = mysql.createConnection({
+        host: '10.1.17.94',
+        user: 'root',
+        password: '',
+        database: 'patch',
+        port: 3306
+    });
+
+    connection.connect(function (err) {
+        if (err) {
+            console.log("mysql socket unexpectedly closed ");
+            setTimeout(handleDisconnect, 2000);
+        }
+
+    });
+
+    connection.on('error', function (err) {
+        console.log('db error', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+            handleDisconnect();                         // lost due to either server restart, or a
+        } else {                                      // connnection idle timeout (the wait_timeout
+            throw err;                                  // server variable configures this)
+        }
+    });
+
+}
 

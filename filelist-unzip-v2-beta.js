@@ -8,7 +8,10 @@ var fs = require('fs'),
             filters: [".svn"]
         }),
         AdmZip = require('adm-zip'),
-        start = new Date().getTime();
+        start = new Date().getTime(),
+	dbUsername = 'root';
+	databaseName = 'kunal';
+	dumpPath = '/opt/lampp/htdocs/databasedump.sql';
 
 
 /*mysql.createConnection({
@@ -46,6 +49,8 @@ unzipWalker.on("end", function () {
     var time = end - start;
     console.log('Execution time: ' + time);
     console.log("Unzip successfully completed!");
+
+
 });
 
 unzipWalker.on("errors", function (root, nodeStatsArray, next) {
