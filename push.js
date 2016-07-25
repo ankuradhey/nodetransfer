@@ -130,7 +130,7 @@ var updateSockets = function ( data ) {
 
 function setDownloadFlag(data, callback){
     // Make the database query
-    var query = connection.query('update school_patch set download_flag = "1" where slc_id = "' + data.slc_id + '" ',function(err, rows){
+    var query = connection.query('update patch_server set download_flag = "1" where slc_id = "' + data.slc_id + '" ',function(err, rows){
             if(err)
                 throw err;
         
@@ -142,7 +142,7 @@ function setDownloadFlag(data, callback){
 
 function unsetDownloadFlag(data, callback){
     // Make the database query
-    var query = connection.query('update school_patch set download_flag = "0" and patch_version = "'+data.patch_version+'" where slc_id = "' + data.slc_id + '" ',function(err, rows){
+    var query = connection.query('update patch_server set download_flag = "0" and patch_version = "'+data.patch_version+'" where slc_id = "' + data.slc_id + '" ',function(err, rows){
             if(err)
                 throw err;
         
