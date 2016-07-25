@@ -2,23 +2,25 @@ var fs = require('fs'),
         shell = require('shelljs'),
         archiver = require('archiver'),
         mysql = require('mysql'),
-        slcId = 1,
+        config = require('./config'),
         fileSizes = [5 * 1024, 10 * 1024, 15 * 1024, 20 * 1024, 50 * 1024, 100 * 1024, 200 * 1024, 500 * 1024, 600 * 1024, 800 * 1024, 1000 * 1024],
         filesCategorized = [], size = 0, xmlIndexCounter = 1, largeSize = 0,
-        filePath = '/home/extramarks/Desktop/CD1/htdocs',
         path = require('path'),
         results = [],
         pending = 0,
         walk = require('walk'),
-        path = require('path'),
-        walker = walk.walk(filePath, {
+        walker = walk.walk(config.filePath, {
             followLinks: false,
             filters: [".svn"]
-        });
-
+        }),
+        connection = mysql.createConnection(config.database);
+console.log(config.filePath);
 //path of file to be saved in db
 var filePath = '';
 var _counter = 0;
+
+
+
 
 walker.on("end", function () {
     var finalArr = [];
@@ -91,7 +93,7 @@ function generateArchive(finalArr, temp) {
 
 walker.on("file", function (root, fileStat, next) {
     var _file = path.resolve(root, fileStat.name);
-
+    
     getFileSize(_file, function (size) {
         console.log(_file, size);
         var bigSizeFlag = true;
@@ -180,7 +182,9 @@ function generateArchiveFile(fileSize, files, currentVolumeIndex, callback) {
     var xmlWriter = Writer("-1");
     //fileSize -1 means infinity
 
+    //pass path name - if required for files to be stored at different place
     writer.start(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex));
+
     //console.log('checking current volume index ' + currentVolumeIndex+' max size '+parseInt(fileSize / 1000000) + 'mb');
 
     var archive = archiver('zip').on('error', function (err) {
@@ -190,8 +194,19 @@ function generateArchiveFile(fileSize, files, currentVolumeIndex, callback) {
     }).on('end', function () {
         writer.close();
         console.log('one zip ' + getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex) + ' done!!');
-
         callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
+        addFile(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb',  currentVolumeIndex), 
+                                parseInt(fileSize / 1048576),function(err, data){
+                                    if(err){
+                                        throw err;
+                                    }else{
+                                        connection.end(function (err) {
+                                            // The connection is terminated now
+                                        });
+                                        callback(getArchiveName('zippedpatch_' + parseInt(fileSize / 1048576) + 'mb', currentVolumeIndex), parseInt(fileSize / 1048576));
+                                    }
+                                });
+        
     });
 
     //archive.bulk({src:['patchfiles/config/**']});
@@ -211,4 +226,37 @@ function getFileSize(fileName, callback) {
     callback(size);
 }
 
+function handleDisconnect() {
+    connection = mysql.createConnection(config.database);
 
+    connection.connect(function (err) {
+        if (err) {
+            console.log("mysql socket unexpectedly closed ",err);
+            setTimeout(handleDisconnect, 2000);
+        }
+
+    });
+
+    connection.on('error', function (err) {
+        console.log('db error', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+            handleDisconnect();                         // lost due to either server restart, or a
+        } else {                                      // connnection idle timeout (the wait_timeout
+            throw err;                                  // server variable configures this)
+        }
+    });
+    return connection;
+}
+
+// adds filename in db
+function addFile(filename, filesize, callback){
+    var connection = handleDisconnect();
+    var query = connection.query('insert into filelist(slc_id, filename, filesize, download_status) values ('+config.slcId+',"'+filename+'", "'+filesize+'","0" ) ', function(err, rows) {
+        if (err)
+            throw err;
+
+        console.log("file added "+filename+" in db after compression");
+        callback(err, connection);
+        
+    });
+}
