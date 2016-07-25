@@ -115,7 +115,7 @@ var updateSockets = function ( data ) {
     connectionsArray.forEach(function( tmpSocket ){
         
         for(var vals in data.schools){
-            console.log(data.schools[vals].slc_id, tmpSocket.slc.slcId, data.schools[vals].patch_version, tmpSocket)
+            //console.log(data.schools[vals].slc_id, tmpSocket.slc.slcId, data.schools[vals].patch_version, tmpSocket)
 //            console.log("slcId = "+data.schools[vals].slc_id+" |  socket slc Id ="+tmpSocket.slc.slcId+" | patchversion available ="+data.schools[vals].patch_version_available);
             if(data.schools[vals].slc_id == tmpSocket.slc.slcId && tmpSocket.slc.patch_version != data.schools[vals].patch_version && data.schools[vals].patch_version){
                 tmpSocket.volatile.emit( 'new-version-available' , data.schools[vals]);
