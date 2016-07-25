@@ -2,13 +2,8 @@ var io = require('socket.io').listen(8000),
         fs = require('fs'),
         mysql = require('mysql'),
         connectionsArray = [],
-        connection = mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: '',
-            database: 'patch',
-            port: 3306
-        }),
+        config = require('./config'),
+        connection = mysql.createConnection(config.database),
         POLLING_INTERVAL = 3000,
         pollingTimer;
 
@@ -31,7 +26,7 @@ console.log('server listening on localhost:8000');
 var pollingLoop = function() {
 
     // Make the database query
-    var query = connection.query('SELECT * FROM school_patch where download_flag = "0" '),
+    var query = connection.query('SELECT * FROM patch_server where download_flag = "0" '),
             schools = []; // this array will contain the result of our db query
 
     // set up the query listeners
@@ -54,6 +49,9 @@ var pollingLoop = function() {
                     updateSockets({schools: schools});
                 }
                 
+                //=====NB=====
+                // TO BE TESTED - after polling interval ends - query is fired again and 
+                // then what happens to the undergoing process
                 pollingTimer = setTimeout(pollingLoop, POLLING_INTERVAL);
                 
             });
@@ -84,7 +82,8 @@ io.sockets.on( 'connection', function ( socket ) {
         console.log('slc id for socket is - '+socket.slc.slcId);
         connectionsArray.push( socket );
         console.log('Number of connections:' + connectionsArray.length);
-        
+
+        socket.emit('newsocket-info-handshake');
     });
     
     //school patch download flag set
@@ -102,7 +101,11 @@ io.sockets.on( 'connection', function ( socket ) {
         unsetDownloadFlag(data,function(){
             console.log("download flag of school patch unset");
         })
-    })
+    });
+
+    socket.on('error-socket', function(err){
+        console.log(err.message);
+    });
 });
 
 var updateSockets = function ( data ) {
@@ -113,7 +116,7 @@ var updateSockets = function ( data ) {
         
         for(var vals in data.schools){
 //            console.log("slcId = "+data.schools[vals].slc_id+" |  socket slc Id ="+tmpSocket.slc.slcId+" | patchversion available ="+data.schools[vals].patch_version_available);
-            if(data.schools[vals].slc_id == tmpSocket.slc.slcId && data.schools[vals].patch_version_available != data.schools[vals].patch_version && data.schools[vals].patch_version_available){
+            if(data.schools[vals].slc_id == tmpSocket.slc.slcId && data.schools[vals].patch_version != data.schools[vals].patch_version && data.schools[vals].patch_version){
                 tmpSocket.volatile.emit( 'new-version-available' , data.schools[vals]);
             }
         }
