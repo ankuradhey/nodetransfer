@@ -4,7 +4,7 @@ var io = require('socket.io').listen(8000),
         connectionsArray = [],
         config = require('./config'),
         connection = mysql.createConnection(config.database),
-        POLLING_INTERVAL = 3000,
+        POLLING_INTERVAL = 2000,
         pollingTimer;
 
 // If there is an error connecting to the database
@@ -26,7 +26,7 @@ console.log('server listening on localhost:8000');
 var pollingLoop = function() {
 
     // Make the database query
-    var query = connection.query('SELECT * FROM patch_server where download_flag = "0" '),
+    var query = connection.query('SELECT p.*  FROM patch_server p join slc_list s on s.slc_id = p.slc_id where s.download_flag = "0"  '),
             schools = []; // this array will contain the result of our db query
 
     // set up the query listeners
@@ -38,6 +38,7 @@ var pollingLoop = function() {
 
             })
             .on('result', function(school) {
+                //console.log(school);
                 // it fills our array looping on each user row inside the db
                 schools.push(school);
             })
@@ -111,12 +112,16 @@ io.sockets.on( 'connection', function ( socket ) {
 var updateSockets = function ( data ) {
     // store the time of the latest update
     data.time = new Date();
+    console.log(connectionsArray.length); 
     // send new data to all the sockets connected
     connectionsArray.forEach(function( tmpSocket ){
         
+
+
         for(var vals in data.schools){
             //console.log(data.schools[vals].slc_id, tmpSocket.slc.slcId, data.schools[vals].patch_version, tmpSocket)
 //            console.log("slcId = "+data.schools[vals].slc_id+" |  socket slc Id ="+tmpSocket.slc.slcId+" | patchversion available ="+data.schools[vals].patch_version_available);
+            console.log('checking patch version --',data.schools[vals], tmpSocket.slc.slcId);
             if(data.schools[vals].slc_id == tmpSocket.slc.slcId && tmpSocket.slc.patch_version != data.schools[vals].patch_version && data.schools[vals].patch_version){
                 tmpSocket.volatile.emit( 'new-version-available' , data.schools[vals]);
             }
