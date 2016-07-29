@@ -47,6 +47,7 @@ var pollingLoop = function() {
                 // loop on itself only if there are sockets still connected
                 
                 if (connectionsArray.length) {
+                    console.log("inside");
                     updateSockets({schools: schools});
                 }
                 

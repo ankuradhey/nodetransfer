@@ -1,8 +1,8 @@
 module.exports = {
 	database:{
-		host:"ec2-54-187-210-110.us-west-2.compute.amazonaws.com",
-		user:"patch",
-		password : 'patch123',
+		host:"localhost",
+		user:"root",
+		password : '',
         database : 'patch_download',
         port : 3306
 	},
